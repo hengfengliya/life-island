@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>把思念交给海，把故事交给风</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="ocean-container">
+        <!-- 海洋背景 -->
+        <canvas id="ocean-canvas"></canvas>
+        
+        <!-- 星空背景 -->
+        <div class="stars"></div>
+        
+        <!-- 主界面 -->
+        <div class="main-interface">
+            <!-- 优美的搜索框 -->
+            <div class="main-search-container">
+                <div class="search-box">
+                    <div class="search-title">把思念交给海，把故事交给风</div>
+                    <div class="search-input-container">
+                        <input type="text" id="mainSearchInput" placeholder="风会替你找到那个人...">
+                        <button class="btn-write-new" id="writeNewBtn">
+                            <span class="btn-icon">💌</span>
+                            <span class="btn-text">写下思念</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 漂流瓶容器 -->
+            <div class="bottles-container" id="bottlesContainer">
+                <!-- 动态生成漂流瓶 -->
+            </div>
+        </div>
+        </div>
+        
+        <!-- 写消息面板 -->
+        <div class="write-panel" id="writePanel">
+            <div class="write-content">
+                <h2>把思念交给海洋</h2>
+                <p class="write-subtitle">海风会把你的思念带给遥远的那个人</p>
+                <textarea id="messageInput" placeholder="在这里写下你的思念、故事或心里话..."></textarea>
+                <div class="write-buttons">
+                    <button class="btn-send" id="sendBtn">🌊 交给大海</button>
+                    <button class="btn-cancel" id="cancelWrite">取消</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 瓶子详情弹窗 -->
+        <div class="bottle-modal" id="bottleModal">
+            <div class="modal-content">
+                <div class="bottle-paper">
+                    <div class="message-content" id="modalMessage"></div>
+                    <div class="message-date" id="modalDate"></div>
+                    <div class="poem-annotation" id="poemAnnotation">
+                        <div class="poem-loading">正在寻找合适的诗句...</div>
+                    </div>
+                </div>
+                <button class="btn-close-modal" id="closeModal">关闭瓶子</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
