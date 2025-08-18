@@ -61,7 +61,67 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadBottles(); // 等待数据加载完成
     bindEvents();
     displayBottles();
+    initNetworkMonitoring(); // 初始化网络监控
+    
+    // 预热API（防止冷启动）
+    if (!USE_LOCAL_STORAGE) {
+        warmupAPI();
+    }
 });
+
+// 网络状态监控
+function initNetworkMonitoring() {
+    // 检查网络状态
+    function updateNetworkStatus() {
+        const isOnline = navigator.onLine;
+        debugLog(`网络状态: ${isOnline ? '在线' : '离线'}`);
+        
+        if (!isOnline) {
+            showMobileAlert('网络连接已断开，请检查网络');
+        }
+    }
+    
+    // 监听网络状态变化
+    window.addEventListener('online', () => {
+        debugLog('✅ 网络已恢复');
+        showMobileAlert('网络已恢复连接');
+    });
+    
+    window.addEventListener('offline', () => {
+        debugLog('❌ 网络已断开');
+        showMobileAlert('网络连接已断开');
+    });
+    
+    // 初始检查
+    updateNetworkStatus();
+}
+
+// API预热函数（防止冷启动）
+async function warmupAPI() {
+    try {
+        debugLog('🔥 正在预热API服务器...');
+        
+        // 发送健康检查请求来预热服务器
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
+        
+        const response = await fetch(`${API_BASE_URL}/health`, {
+            method: 'GET',
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+            const data = await response.json();
+            debugLog('✅ API服务器预热成功:', data);
+        } else {
+            debugLog('⚠️ API服务器预热响应异常:', response.status);
+        }
+    } catch (error) {
+        debugLog('⚠️ API服务器预热失败（这是正常的）:', error.message);
+    }
+}
 
 // 海洋动画初始化
 function initOceanAnimation() {
@@ -167,8 +227,11 @@ function initOceanAnimation() {
 function bindEvents() {
     writeNewBtn.addEventListener('click', openWritePanel);
     cancelWrite.addEventListener('click', closeWritePanel);
-    sendBtn.addEventListener('click', sendMessage);
+    sendBtn.addEventListener('click', handleSendClick);
     closeModal.addEventListener('click', closeBottleModal);
+    
+    // 添加触屏事件支持
+    sendBtn.addEventListener('touchend', handleSendClick);
     
     // 实时搜索
     mainSearchInput.addEventListener('input', performSearch);
@@ -179,6 +242,30 @@ function bindEvents() {
             closeAllPanels();
         }
     });
+    
+    // 移动端优化：防止双击缩放
+    document.addEventListener('touchstart', function(e) {
+        if (e.touches.length > 1) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function(e) {
+        const now = new Date().getTime();
+        if (now - lastTouchEnd <= 300) {
+            e.preventDefault();
+        }
+        lastTouchEnd = now;
+    }, false);
+}
+
+// 处理发送按钮点击事件（防重复点击）
+function handleSendClick(e) {
+    e.preventDefault();
+    if (!sendBtn.disabled) {
+        sendMessage();
+    }
 }
 
 // 打开写消息面板
@@ -223,9 +310,18 @@ function closeBottleModal() {
 async function sendMessage() {
     const message = messageInput.value.trim();
     if (!message) {
-        alert('请输入消息内容');
+        showMobileAlert('请输入消息内容');
         return;
     }
+    
+    // 防止重复提交
+    if (sendBtn.disabled) {
+        return;
+    }
+    
+    // 禁用发送按钮并显示进度
+    sendBtn.disabled = true;
+    updateSendButtonState('sending');
     
     const newBottle = {
         id: Date.now().toString(),
@@ -238,12 +334,107 @@ async function sendMessage() {
     showBottleAnimation();
     
     try {
+        let success = false;
+        let result = null;
+        
         if (USE_LOCAL_STORAGE) {
             // 本地存储（开发模式）
             bottles.unshift(newBottle);
             localStorage.setItem('lifeStationBottles', JSON.stringify(bottles));
+            success = true;
         } else {
-            // API 存储（生产模式）
+            // API 存储（生产模式）- 添加重试机制
+            result = await sendWithRetry(message, 3);
+            if (result && result.success) {
+                // 添加新瓶子到本地数组（用于立即显示）
+                bottles.unshift(result.bottle);
+                debugLog('✨', result.message);
+                success = true;
+            }
+        }
+        
+        if (success) {
+            updateSendButtonState('success');
+            // 关闭写消息面板
+            setTimeout(() => {
+                closeWritePanel();
+                displayBottles();
+                // 恢复发送按钮
+                updateSendButtonState('default');
+            }, 2000);
+        } else {
+            throw new Error('保存失败，请重试');
+        }
+        
+    } catch (error) {
+        console.error('保存消息失败:', error);
+        showMobileAlert(`${error.message}`);
+        
+        // 恢复发送按钮
+        updateSendButtonState('error');
+        setTimeout(() => {
+            updateSendButtonState('default');
+        }, 2000);
+    }
+}
+
+// 更新发送按钮状态
+function updateSendButtonState(state) {
+    switch (state) {
+        case 'sending':
+            sendBtn.disabled = true;
+            sendBtn.textContent = '🌊 投递中...';
+            sendBtn.style.background = 'linear-gradient(135deg, #74b9ff, #0984e3)';
+            break;
+        case 'warming':
+            sendBtn.disabled = true;
+            sendBtn.textContent = '🔥 启动服务器...';
+            sendBtn.style.background = 'linear-gradient(135deg, #fdcb6e, #e17055)';
+            break;
+        case 'coldstart':
+            sendBtn.disabled = true;
+            sendBtn.textContent = '⏳ 服务器启动中...';
+            sendBtn.style.background = 'linear-gradient(135deg, #a29bfe, #6c5ce7)';
+            break;
+        case 'success':
+            sendBtn.disabled = true;
+            sendBtn.textContent = '✅ 投递成功';
+            sendBtn.style.background = 'linear-gradient(135deg, #00b894, #00cec9)';
+            break;
+        case 'error':
+            sendBtn.disabled = true;
+            sendBtn.textContent = '❌ 投递失败';
+            sendBtn.style.background = 'linear-gradient(135deg, #e17055, #d63031)';
+            break;
+        case 'default':
+        default:
+            sendBtn.disabled = false;
+            sendBtn.textContent = '🌊 交给大海';
+            sendBtn.style.background = '';
+            break;
+    }
+}
+
+// 带重试机制的发送函数
+async function sendWithRetry(message, maxRetries = 3, timeout = 30000) { // 增加到30秒超时
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            debugLog(`第 ${attempt} 次尝试发送消息...`);
+            
+            // 检查网络状态
+            if (!navigator.onLine) {
+                throw new Error('网络连接已断开，请检查网络后重试');
+            }
+            
+            // 第一次尝试时给用户提示可能的冷启动延迟
+            if (attempt === 1) {
+                updateSendButtonState('warming');
+            }
+            
+            // 创建带超时的fetch请求
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            
             const response = await fetch(`${API_BASE_URL}/bottles`, {
                 method: 'POST',
                 headers: {
@@ -251,33 +442,111 @@ async function sendMessage() {
                 },
                 body: JSON.stringify({
                     message: message
-                })
+                }),
+                signal: controller.signal
             });
             
+            clearTimeout(timeoutId);
+            
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                if (response.status === 429) {
+                    throw new Error('发送太频繁，请稍后再试');
+                } else if (response.status >= 500) {
+                    throw new Error('服务器暂时不可用，请稍后重试');
+                } else if (response.status === 413) {
+                    throw new Error('消息内容过长，请缩短后重试');
+                } else {
+                    throw new Error(`网络错误 (${response.status})`);
+                }
             }
             
             const result = await response.json();
             
             if (result.success) {
-                // 添加新瓶子到本地数组（用于立即显示）
-                bottles.unshift(result.bottle);
-                debugLog('✨', result.message);
+                debugLog(`✅ 第 ${attempt} 次尝试成功`);
+                return result;
             } else {
-                throw new Error(result.error || '保存失败');
+                throw new Error(result.error || '服务器返回错误');
             }
+            
+        } catch (error) {
+            debugLog(`❌ 第 ${attempt} 次尝试失败:`, error.message);
+            
+            if (error.name === 'AbortError') {
+                if (attempt === 1) {
+                    // 第一次超时可能是冷启动，给出友好提示
+                    updateSendButtonState('coldstart');
+                    throw new Error('服务器启动中，请稍等几秒后重试');
+                } else {
+                    throw new Error('网络超时，请检查网络连接');
+                }
+            }
+            
+            if (attempt === maxRetries) {
+                // 根据错误类型提供不同的建议
+                let suggestion = '';
+                if (error.message.includes('网络') || error.message.includes('超时')) {
+                    suggestion = '请检查网络连接，或等待几秒后重试';
+                } else if (error.message.includes('服务器')) {
+                    suggestion = '服务器可能正在启动，请稍后重试';
+                } else {
+                    suggestion = '请稍后重试';
+                }
+                
+                throw new Error(`发送失败: ${error.message}，${suggestion}`);
+            }
+            
+            // 等待一段时间后重试（递增等待时间）
+            const waitTime = Math.min(2000 * Math.pow(2, attempt - 1), 10000); // 增加等待时间
+            debugLog(`⏱️ 等待 ${waitTime/1000} 秒后重试...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+    }
+}
+
+// 移动端友好的提示框
+function showMobileAlert(message) {
+    // 优先使用自定义提示框，fallback到原生alert
+    if (typeof createMobileToast === 'function') {
+        createMobileToast(message);
+    } else {
+        // 创建自定义toast
+        const toast = document.createElement('div');
+        toast.className = 'mobile-toast';
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            z-index: 10000;
+            max-width: 90vw;
+            text-align: center;
+            animation: fadeInOut 3s ease-in-out forwards;
+        `;
+        
+        // 添加动画样式
+        if (!document.getElementById('mobile-toast-styles')) {
+            const style = document.createElement('style');
+            style.id = 'mobile-toast-styles';
+            style.textContent = `
+                @keyframes fadeInOut {
+                    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                    20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                    80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                }
+            `;
+            document.head.appendChild(style);
         }
         
-        // 关闭写消息面板
-        setTimeout(() => {
-            closeWritePanel();
-            displayBottles();
-        }, 2000);
-        
-    } catch (error) {
-        console.error('保存消息失败:', error);
-        alert(`保存消息失败: ${error.message}`);
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
     }
 }
 
