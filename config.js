@@ -42,6 +42,51 @@ window.LifeStationConfig = {
             headers: {
                 'Host': 'life-station-api.life-island.workers.dev'
             }
+        },
+        {
+            name: 'Cloudflare Workers（IP直连4）',
+            url: 'https://104.16.132.229/api',
+            region: 'ip-direct', 
+            priority: 6,
+            headers: {
+                'Host': 'life-station-api.life-island.workers.dev'
+            }
+        },
+        {
+            name: 'Cloudflare Workers（IP直连5）',
+            url: 'https://104.16.133.229/api',
+            region: 'ip-direct', 
+            priority: 7,
+            headers: {
+                'Host': 'life-station-api.life-island.workers.dev'
+            }
+        },
+        {
+            name: 'Cloudflare Workers（IP直连6）',
+            url: 'https://172.67.177.111/api',
+            region: 'ip-direct', 
+            priority: 8,
+            headers: {
+                'Host': 'life-station-api.life-island.workers.dev'
+            }
+        },
+        {
+            name: 'Cloudflare Workers（IP直连7）',
+            url: 'https://172.67.178.111/api',
+            region: 'ip-direct', 
+            priority: 9,
+            headers: {
+                'Host': 'life-station-api.life-island.workers.dev'
+            }
+        },
+        {
+            name: 'Cloudflare Workers（IP直连8）',
+            url: 'https://172.64.80.1/api',
+            region: 'ip-direct', 
+            priority: 10,
+            headers: {
+                'Host': 'life-station-api.life-island.workers.dev'
+            }
         }
     ],
     
