@@ -5,22 +5,46 @@ window.LifeStationConfig = {
     // API地址列表（按优先级排序）
     API_ENDPOINTS: [
         {
+            name: '本地代理服务器（推荐）',
+            url: 'http://localhost:3000',
+            region: 'local-proxy',
+            priority: 1
+        },
+        {
             name: 'Cloudflare Workers（主节点）',
             url: 'https://life-station-api.life-island.workers.dev/api',
             region: 'primary',
-            priority: 1
+            priority: 2
+        },
+        {
+            name: 'CORS代理1（国内可用）',
+            url: 'https://cors-anywhere.herokuapp.com/https://life-station-api.life-island.workers.dev/api',
+            region: 'proxy',
+            priority: 3
+        },
+        {
+            name: 'CORS代理2（国内可用）',
+            url: 'https://api.allorigins.win/raw?url=https://life-station-api.life-island.workers.dev/api',
+            region: 'proxy',
+            priority: 4
+        },
+        {
+            name: 'CORS代理3（国内可用）',
+            url: 'https://corsproxy.io/?https://life-station-api.life-island.workers.dev/api',
+            region: 'proxy',
+            priority: 5
         },
         {
             name: 'Cloudflare Workers（简化域名）',
             url: 'https://life-island.workers.dev/api',
             region: 'simplified',
-            priority: 2
+            priority: 5
         },
         {
             name: 'Cloudflare Workers（IP直连1）',
             url: 'https://162.159.192.1/api',
             region: 'ip-direct',
-            priority: 3,
+            priority: 6,
             headers: {
                 'Host': 'life-station-api.life-island.workers.dev'
             }
@@ -29,7 +53,7 @@ window.LifeStationConfig = {
             name: 'Cloudflare Workers（IP直连2）',
             url: 'https://162.159.193.1/api', 
             region: 'ip-direct',
-            priority: 4,
+            priority: 7,
             headers: {
                 'Host': 'life-station-api.life-island.workers.dev'
             }
@@ -38,7 +62,7 @@ window.LifeStationConfig = {
             name: 'Cloudflare Workers（IP直连3）',
             url: 'https://162.159.195.1/api',
             region: 'ip-direct', 
-            priority: 5,
+            priority: 8,
             headers: {
                 'Host': 'life-station-api.life-island.workers.dev'
             }
@@ -47,7 +71,7 @@ window.LifeStationConfig = {
             name: 'Cloudflare Workers（IP直连4）',
             url: 'https://104.16.132.229/api',
             region: 'ip-direct', 
-            priority: 6,
+            priority: 9,
             headers: {
                 'Host': 'life-station-api.life-island.workers.dev'
             }
@@ -55,33 +79,6 @@ window.LifeStationConfig = {
         {
             name: 'Cloudflare Workers（IP直连5）',
             url: 'https://104.16.133.229/api',
-            region: 'ip-direct', 
-            priority: 7,
-            headers: {
-                'Host': 'life-station-api.life-island.workers.dev'
-            }
-        },
-        {
-            name: 'Cloudflare Workers（IP直连6）',
-            url: 'https://172.67.177.111/api',
-            region: 'ip-direct', 
-            priority: 8,
-            headers: {
-                'Host': 'life-station-api.life-island.workers.dev'
-            }
-        },
-        {
-            name: 'Cloudflare Workers（IP直连7）',
-            url: 'https://172.67.178.111/api',
-            region: 'ip-direct', 
-            priority: 9,
-            headers: {
-                'Host': 'life-station-api.life-island.workers.dev'
-            }
-        },
-        {
-            name: 'Cloudflare Workers（IP直连8）',
-            url: 'https://172.64.80.1/api',
             region: 'ip-direct', 
             priority: 10,
             headers: {
