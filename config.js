@@ -1,22 +1,48 @@
 // 人生小站 - 配置文件
-// 智能API选择：国内外用户使用不同的API地址
+// 智能API选择：尝试不同的Cloudflare节点
 
 window.LifeStationConfig = {
     // API地址列表（按优先级排序）
     API_ENDPOINTS: [
         {
-            name: 'Cloudflare Workers（海外）',
+            name: 'Cloudflare Workers（主节点）',
             url: 'https://life-station-api.life-island.workers.dev/api',
-            region: 'global',
+            region: 'primary',
             priority: 1
         },
-        // TODO: 添加国内镜像API
-        // {
-        //     name: '腾讯云函数（国内）',
-        //     url: 'https://your-tencent-function.ap-beijing.scf.tencentcs.com/api',
-        //     region: 'china',
-        //     priority: 2
-        // }
+        {
+            name: 'Cloudflare Workers（简化域名）',
+            url: 'https://life-island.workers.dev/api',
+            region: 'simplified',
+            priority: 2
+        },
+        {
+            name: 'Cloudflare Workers（IP直连1）',
+            url: 'https://162.159.192.1/api',
+            region: 'ip-direct',
+            priority: 3,
+            headers: {
+                'Host': 'life-station-api.life-island.workers.dev'
+            }
+        },
+        {
+            name: 'Cloudflare Workers（IP直连2）',
+            url: 'https://162.159.193.1/api', 
+            region: 'ip-direct',
+            priority: 4,
+            headers: {
+                'Host': 'life-station-api.life-island.workers.dev'
+            }
+        },
+        {
+            name: 'Cloudflare Workers（IP直连3）',
+            url: 'https://162.159.195.1/api',
+            region: 'ip-direct', 
+            priority: 5,
+            headers: {
+                'Host': 'life-station-api.life-island.workers.dev'
+            }
+        }
     ],
     
     // 当前选择的API（动态设置）

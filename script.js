@@ -5,6 +5,12 @@ let isSearchMode = false;
 
 // 智能API选择
 let SELECTED_API_URL = null;
+let SELECTED_API_HEADERS = {};
+
+// 获取当前API Headers
+function getCurrentApiHeaders() {
+    return SELECTED_API_HEADERS || {};
+}
 
 // 测试API连通性并选择最佳
 async function selectBestAPI() {
@@ -24,17 +30,25 @@ async function selectBestAPI() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒快速测试
             
-            const startTime = Date.now();
-            const response = await fetch(`${endpoint.url}/health`, {
+            // 构建请求选项，包含自定义headers
+            const fetchOptions = {
                 method: 'GET',
-                signal: controller.signal
-            });
+                signal: controller.signal,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(endpoint.headers || {}) // 添加自定义headers（用于IP直连时的Host头）
+                }
+            };
+            
+            const startTime = Date.now();
+            const response = await fetch(`${endpoint.url}/health`, fetchOptions);
             const responseTime = Date.now() - startTime;
             clearTimeout(timeoutId);
             
             if (response.ok) {
                 debugLog(`✅ API选择成功: ${endpoint.name} (${responseTime}ms)`);
                 SELECTED_API_URL = endpoint.url;
+                SELECTED_API_HEADERS = endpoint.headers || {}; // 保存headers用于后续请求
                 return endpoint.url;
             } else {
                 debugLog(`❌ API测试失败: ${endpoint.name} - HTTP ${response.status}`);
@@ -48,6 +62,7 @@ async function selectBestAPI() {
     // 如果所有API都失败，使用默认API
     debugLog('⚠️ 所有API测试失败，使用默认API');
     SELECTED_API_URL = config.API_BASE_URL;
+    SELECTED_API_HEADERS = {};
     return config.API_BASE_URL;
 }
 
@@ -914,10 +929,12 @@ async function sendWithRetry(message, maxRetries = 3, timeout = 30000) {
             const timeoutId = setTimeout(() => controller.abort(), timeout);
             
             const apiUrl = getCurrentApiUrl();
+            const apiHeaders = getCurrentApiHeaders();
             const response = await fetch(`${apiUrl}/bottles`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...apiHeaders
                 },
                 body: JSON.stringify({
                     message: message
@@ -1158,10 +1175,12 @@ async function loadBottlesWithRetry(maxRetries = 3, timeout = 30000) {
             const timeoutId = setTimeout(() => controller.abort(), timeout);
             
             const apiUrl = getCurrentApiUrl();
+            const apiHeaders = getCurrentApiHeaders();
             const response = await fetch(`${apiUrl}/bottles?limit=50`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...apiHeaders
                 },
                 signal: controller.signal
             });
