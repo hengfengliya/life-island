@@ -395,12 +395,13 @@ async function mobileFetch(url, options = {}) {
 
 // 调试日志函数
 function debugLog(...args) {
-    if (DEBUG_MODE) {
-        console.log('🌊 Life Station:', ...args);
-        
-        // 在页面上也显示调试信息（手机端方便查看）
-        showDebugInfo(args.join(' '));
-    }
+    // 完全禁用所有调试输出
+    // if (DEBUG_MODE) {
+    //     console.log('🌊 Life Station:', ...args);
+    //     
+    //     // 在页面上也显示调试信息（手机端方便查看）
+    //     showDebugInfo(args.join(' '));
+    // }
 }
 
 // 显示调试信息
@@ -824,7 +825,7 @@ async function sendMessage() {
         }
         
     } catch (error) {
-        console.error('保存消息失败:', error);
+        // console.error('保存消息失败:', error);
         showMobileAlert(`${error.message}`);
         
         // 恢复发送按钮
@@ -1117,7 +1118,7 @@ async function loadBottles() {
             debugLog(`🌊 从海洋中捞起了 ${bottles.length} 个漂流瓶`);
         }
     } catch (error) {
-        console.error('加载数据失败:', error);
+        // console.error('加载数据失败:', error);
         debugLog('⚠️ 数据加载失败，使用示例数据');
         bottles = getSampleBottles();
     }
@@ -1508,7 +1509,7 @@ function openBottle(bottle) {
             <div class="poem-author-small">—— ${poem.origin}</div>
         `;
     }).catch(error => {
-        console.log('诗句加载失败:', error);
+        // console.log('诗句加载失败:', error);
         poemAnnotation.innerHTML = '<div class="poem-author-small">💕 海风轻语，情意绵绵 💕</div>';
     });
 }
@@ -1540,7 +1541,7 @@ async function fetchPoemFromAPI() {
         }
         
     } catch (error) {
-        console.log('爱情诗句API调用失败，使用备用方案:', error);
+        // console.log('爱情诗句API调用失败，使用备用方案:', error);
         
         // 备用方案：使用本地爱情诗句库
         const poem = lovePoems[Math.floor(Math.random() * lovePoems.length)];
@@ -1580,14 +1581,14 @@ async function performSearch() {
                     debugLog(data.message);
                 }
             } else {
-                console.warn('API搜索失败，使用本地搜索');
+                // console.warn('API搜索失败，使用本地搜索');
                 searchResults = bottles.filter(bottle => 
                     bottle.message.toLowerCase().includes(query)
                 );
             }
         }
     } catch (error) {
-        console.error('搜索失败:', error);
+        // console.error('搜索失败:', error);
         // 回退到本地搜索
         searchResults = bottles.filter(bottle => 
             bottle.message.toLowerCase().includes(query)
