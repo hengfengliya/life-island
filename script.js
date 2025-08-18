@@ -3,14 +3,164 @@ let bottles = [];
 let searchResults = [];
 let isSearchMode = false;
 
-// API 配置 - 从配置文件读取
-const API_BASE_URL = window.LifeStationConfig?.API_BASE_URL || 'http://localhost:8787/api';
+// 智能API选择
+let SELECTED_API_URL = null;
+
+// 测试API连通性并选择最佳
+async function selectBestAPI() {
+    const config = window.LifeStationConfig;
+    if (!config.FEATURES?.SMART_API_SELECTION || !config.API_ENDPOINTS) {
+        debugLog('💡 未启用智能API选择或无备用API');
+        return config.API_BASE_URL;
+    }
+    
+    debugLog('🎯 开始智能API选择...');
+    const endpoints = config.API_ENDPOINTS.sort((a, b) => a.priority - b.priority);
+    
+    for (const endpoint of endpoints) {
+        try {
+            debugLog(`🧪 测试API: ${endpoint.name} - ${endpoint.url}`);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒快速测试
+            
+            const startTime = Date.now();
+            const response = await fetch(`${endpoint.url}/health`, {
+                method: 'GET',
+                signal: controller.signal
+            });
+            const responseTime = Date.now() - startTime;
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+                debugLog(`✅ API选择成功: ${endpoint.name} (${responseTime}ms)`);
+                SELECTED_API_URL = endpoint.url;
+                return endpoint.url;
+            } else {
+                debugLog(`❌ API测试失败: ${endpoint.name} - HTTP ${response.status}`);
+            }
+            
+        } catch (error) {
+            debugLog(`❌ API连接失败: ${endpoint.name} - ${error.message}`);
+        }
+    }
+    
+    // 如果所有API都失败，使用默认API
+    debugLog('⚠️ 所有API测试失败，使用默认API');
+    SELECTED_API_URL = config.API_BASE_URL;
+    return config.API_BASE_URL;
+}
+
+// 获取当前API URL
+function getCurrentApiUrl() {
+    return SELECTED_API_URL || window.LifeStationConfig?.API_BASE_URL || 'http://localhost:8787/api';
+}
 const USE_LOCAL_STORAGE = window.LifeStationConfig?.USE_LOCAL_STORAGE ?? true;
 const DEBUG_MODE = window.LifeStationConfig?.DEBUG_MODE ?? true;
+
+// 检测网络环境并给出建议
+function detectNetworkEnvironment() {
+    const isChina = /^zh-CN|^zh/i.test(navigator.language);
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const isChinaTimezone = timezone && (timezone.includes('Shanghai') || timezone.includes('Beijing'));
+    
+    return {
+        isChina: isChina || isChinaTimezone,
+        language: navigator.language,
+        timezone: timezone
+    };
+}
+
+// 显示网络环境提示
+function showNetworkEnvironmentTips() {
+    const env = detectNetworkEnvironment();
+    debugLog('🌍 网络环境检测:', JSON.stringify(env, null, 2));
+    
+    if (env.isChina) {
+        debugLog('🇨🇳 检测到中国大陆网络环境');
+        debugLog('💡 提示: Cloudflare Workers在中国大陆可能需要科学上网工具');
+        debugLog('📱 如果手机端无法加载数据，请确保开启VPN或代理');
+        
+        // 显示用户友好的提示
+        showMobileAlert('检测到中国大陆网络环境\n如数据加载失败，请尝试开启VPN或代理工具');
+    }
+}
+
+// 网络连通性测试
+async function testNetworkConnectivity() {
+    debugLog('🔍 开始网络连通性测试...');
+    
+    const tests = [
+        {
+            name: '基础连通性',
+            url: 'https://httpbin.org/get',
+            timeout: 5000
+        },
+        {
+            name: 'Cloudflare Workers连通性',
+            url: 'https://workers.cloudflare.com/',
+            timeout: 8000
+        },
+        {
+            name: '目标域名连通性',
+            url: 'https://life-island.workers.dev/',
+            timeout: 10000
+        },
+        {
+            name: 'API健康检查',
+            url: `${API_BASE_URL}/health`,
+            timeout: 15000
+        }
+    ];
+    
+    for (const test of tests) {
+        try {
+            debugLog(`🧪 测试${test.name}: ${test.url}`);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), test.timeout);
+            
+            const startTime = Date.now();
+            const response = await fetch(test.url, {
+                method: 'GET',
+                mode: 'cors',
+                signal: controller.signal
+            });
+            const endTime = Date.now();
+            clearTimeout(timeoutId);
+            
+            debugLog(`✅ ${test.name}成功 - 状态:${response.status} 耗时:${endTime-startTime}ms`);
+            
+        } catch (error) {
+            debugLog(`❌ ${test.name}失败 - 错误:${error.message} 类型:${error.name}`);
+            
+            // 详细分析错误类型
+            if (error.name === 'AbortError') {
+                debugLog(`⏰ ${test.name} - 请求超时`);
+            } else if (error.message.includes('Failed to fetch') || error.message.includes('Load failed')) {
+                debugLog(`🚫 ${test.name} - 网络连接被阻断或DNS解析失败`);
+            } else if (error.message.includes('CORS')) {
+                debugLog(`🔒 ${test.name} - 跨域请求被阻止`);
+            } else if (error.message.includes('SSL') || error.message.includes('certificate')) {
+                debugLog(`🔐 ${test.name} - SSL证书问题`);
+            } else {
+                debugLog(`❓ ${test.name} - 未知网络错误: ${error.message}`);
+            }
+        }
+        
+        // 测试间隔，避免请求过于频繁
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    debugLog('🏁 网络连通性测试完成');
+}
 
 // 网络诊断工具
 async function runNetworkDiagnostics() {
     debugLog('🔧 开始网络诊断...');
+    
+    // 先运行连通性测试
+    await testNetworkConnectivity();
     
     const results = {
         config: {},
@@ -330,11 +480,18 @@ if (!window.LifeStationConfig?.USE_LOCAL_STORAGE) {
 document.addEventListener('DOMContentLoaded', async function() {
     // 显示配置信息
     debugLog('🚀 初始化开始');
-    debugLog(`API地址: ${API_BASE_URL}`);
+    
+    // 智能API选择
+    const selectedApi = await selectBestAPI();
+    debugLog(`📡 选择的API: ${selectedApi}`);
+    
     debugLog(`本地存储模式: ${USE_LOCAL_STORAGE}`);
     debugLog(`调试模式: ${DEBUG_MODE}`);
     debugLog(`网络状态: ${navigator.onLine ? '在线' : '离线'}`);
     debugLog(`用户代理: ${navigator.userAgent}`);
+    
+    // 检测网络环境
+    showNetworkEnvironmentTips();
     
     // 在调试模式下显示调试按钮
     if (DEBUG_MODE) {
@@ -756,7 +913,8 @@ async function sendWithRetry(message, maxRetries = 3, timeout = 30000) {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), timeout);
             
-            const response = await fetch(`${API_BASE_URL}/bottles`, {
+            const apiUrl = getCurrentApiUrl();
+            const response = await fetch(`${apiUrl}/bottles`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -999,7 +1157,8 @@ async function loadBottlesWithRetry(maxRetries = 3, timeout = 30000) {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), timeout);
             
-            const response = await fetch(`${API_BASE_URL}/bottles?limit=50`, {
+            const apiUrl = getCurrentApiUrl();
+            const response = await fetch(`${apiUrl}/bottles?limit=50`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
