@@ -8,6 +8,126 @@ const API_BASE_URL = window.LifeStationConfig?.API_BASE_URL || 'http://localhost
 const USE_LOCAL_STORAGE = window.LifeStationConfig?.USE_LOCAL_STORAGE ?? true;
 const DEBUG_MODE = window.LifeStationConfig?.DEBUG_MODE ?? true;
 
+// 网络诊断工具
+async function runNetworkDiagnostics() {
+    debugLog('🔧 开始网络诊断...');
+    
+    const results = {
+        config: {},
+        network: {},
+        api: {},
+        browser: {}
+    };
+    
+    // 1. 配置信息
+    results.config = {
+        API_BASE_URL,
+        USE_LOCAL_STORAGE,
+        DEBUG_MODE,
+        userAgent: navigator.userAgent
+    };
+    debugLog('📋 配置信息:', JSON.stringify(results.config, null, 2));
+    
+    // 2. 网络状态
+    results.network = {
+        online: navigator.onLine,
+        connection: navigator.connection ? {
+            effectiveType: navigator.connection.effectiveType,
+            downlink: navigator.connection.downlink,
+            rtt: navigator.connection.rtt
+        } : 'Not available'
+    };
+    debugLog('🌐 网络状态:', JSON.stringify(results.network, null, 2));
+    
+    // 3. 浏览器能力检查
+    results.browser = {
+        fetch: typeof fetch !== 'undefined',
+        AbortController: typeof AbortController !== 'undefined',
+        AbortSignal: typeof AbortSignal !== 'undefined',
+        localStorage: typeof localStorage !== 'undefined',
+        JSON: typeof JSON !== 'undefined'
+    };
+    debugLog('🔍 浏览器能力:', JSON.stringify(results.browser, null, 2));
+    
+    // 4. API连通性测试
+    if (!USE_LOCAL_STORAGE) {
+        debugLog('🧪 测试API连通性...');
+        
+        // 测试基础连通性
+        try {
+            const startTime = Date.now();
+            const response = await fetch(`${API_BASE_URL}/health`, {
+                method: 'GET',
+                signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined
+            });
+            const endTime = Date.now();
+            
+            results.api.health = {
+                success: response.ok,
+                status: response.status,
+                statusText: response.statusText,
+                responseTime: endTime - startTime,
+                headers: Object.fromEntries(response.headers.entries())
+            };
+            
+            if (response.ok) {
+                const data = await response.json();
+                results.api.health.data = data;
+                debugLog('✅ Health API测试成功:', JSON.stringify(results.api.health, null, 2));
+            } else {
+                debugLog('❌ Health API测试失败:', JSON.stringify(results.api.health, null, 2));
+            }
+        } catch (error) {
+            results.api.health = {
+                success: false,
+                error: error.message,
+                errorType: error.name
+            };
+            debugLog('❌ Health API测试异常:', JSON.stringify(results.api.health, null, 2));
+        }
+        
+        // 测试bottles接口
+        try {
+            debugLog('🧪 测试Bottles API...');
+            const startTime = Date.now();
+            const response = await fetch(`${API_BASE_URL}/bottles?limit=1`, {
+                method: 'GET',
+                signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined
+            });
+            const endTime = Date.now();
+            
+            results.api.bottles = {
+                success: response.ok,
+                status: response.status,
+                statusText: response.statusText,
+                responseTime: endTime - startTime,
+                headers: Object.fromEntries(response.headers.entries())
+            };
+            
+            if (response.ok) {
+                const data = await response.json();
+                results.api.bottles.data = data;
+                results.api.bottles.bottleCount = data.bottles ? data.bottles.length : 0;
+                debugLog('✅ Bottles API测试成功:', JSON.stringify(results.api.bottles, null, 2));
+            } else {
+                debugLog('❌ Bottles API测试失败:', JSON.stringify(results.api.bottles, null, 2));
+            }
+        } catch (error) {
+            results.api.bottles = {
+                success: false,
+                error: error.message,
+                errorType: error.name
+            };
+            debugLog('❌ Bottles API测试异常:', JSON.stringify(results.api.bottles, null, 2));
+        }
+    } else {
+        debugLog('📦 使用本地存储模式，跳过API测试');
+    }
+    
+    debugLog('🎯 诊断完成，结果:', JSON.stringify(results, null, 2));
+    return results;
+}
+
 // 调试日志函数
 function debugLog(...args) {
     if (DEBUG_MODE) {
@@ -115,6 +235,19 @@ document.addEventListener('DOMContentLoaded', async function() {
     debugLog(`本地存储模式: ${USE_LOCAL_STORAGE}`);
     debugLog(`调试模式: ${DEBUG_MODE}`);
     debugLog(`网络状态: ${navigator.onLine ? '在线' : '离线'}`);
+    
+    // 在调试模式下显示调试按钮
+    if (DEBUG_MODE) {
+        const debugButtons = document.getElementById('debugButtons');
+        if (debugButtons) {
+            debugButtons.style.display = 'block';
+        }
+    }
+    
+    // 运行网络诊断
+    setTimeout(() => {
+        runNetworkDiagnostics();
+    }, 1000);
     
     initOceanAnimation();
     
