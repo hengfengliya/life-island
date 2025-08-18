@@ -1310,13 +1310,11 @@ function displayBottles() {
 // 创建瓶子元素
 function createBottleElement(bottle, index) {
     const bottleDiv = document.createElement('div');
-    bottleDiv.className = 'bottle-item';
+    bottleDiv.className = 'bottle-item bottle-float-animation';
     bottleDiv.style.cssText = `
         position: absolute;
         cursor: pointer;
-        transition: all 0.3s ease;
-        animation: float 3s ease-in-out infinite;
-        animation-delay: ${index * 0.5}s;
+        animation-delay: ${index * 0.2}s;
     `;
     
     // 随机位置 - 避开搜索框区域
@@ -1332,10 +1330,10 @@ function createBottleElement(bottle, index) {
     // 点击事件
     bottleDiv.addEventListener('click', () => openBottle(bottle));
     
-    // 优化的悬停效果
+    // 简化的悬停效果（避免抖动）
     bottleDiv.addEventListener('mouseenter', function() {
-        this.style.transform = 'scale(1.2) translateY(-10px)';
-        this.style.filter = 'drop-shadow(0 10px 20px rgba(255,255,255,0.3))';
+        this.style.transform = 'scale(1.1) translateY(-8px)';
+        this.style.filter = 'drop-shadow(0 8px 16px rgba(255,255,255,0.2))';
         this.style.zIndex = '1000';
         
         // 添加粒子效果
@@ -1343,9 +1341,9 @@ function createBottleElement(bottle, index) {
     });
     
     bottleDiv.addEventListener('mouseleave', function() {
-        this.style.transform = 'scale(1) translateY(0)';
-        this.style.filter = 'none';
-        this.style.zIndex = 'auto';
+        this.style.transform = '';
+        this.style.filter = '';
+        this.style.zIndex = '';
     });
     
     return bottleDiv;
@@ -1675,19 +1673,10 @@ function addPageLoadAnimation() {
     }
 }
 
-// 添加瓶子出现动画
+// 添加瓶子出现动画（简化版，避免抖动）
 function addBottleAppearAnimation() {
-    const bottles = document.querySelectorAll('.bottle-item');
-    bottles.forEach((bottle, index) => {
-        bottle.style.opacity = '0';
-        bottle.style.transform = 'scale(0.3) translateY(100px)';
-        
-        setTimeout(() => {
-            bottle.style.transition = 'all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-            bottle.style.opacity = '1';
-            bottle.style.transform = 'scale(1) translateY(0)';
-        }, 100 * index);
-    });
+    // 移除复杂的出现动画，保持原有的平滑浮动效果
+    // 瓶子将使用CSS中定义的bottle-float-animation类进行自然浮动
 }
 
 // 优化搜索输入体验
