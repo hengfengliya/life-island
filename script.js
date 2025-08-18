@@ -1332,15 +1332,20 @@ function createBottleElement(bottle, index) {
     // 点击事件
     bottleDiv.addEventListener('click', () => openBottle(bottle));
     
-    // 悬停效果
+    // 优化的悬停效果
     bottleDiv.addEventListener('mouseenter', function() {
         this.style.transform = 'scale(1.2) translateY(-10px)';
         this.style.filter = 'drop-shadow(0 10px 20px rgba(255,255,255,0.3))';
+        this.style.zIndex = '1000';
+        
+        // 添加粒子效果
+        createParticleEffect(this);
     });
     
     bottleDiv.addEventListener('mouseleave', function() {
         this.style.transform = 'scale(1) translateY(0)';
         this.style.filter = 'none';
+        this.style.zIndex = 'auto';
     });
     
     return bottleDiv;
@@ -1609,3 +1614,161 @@ function formatDate(dateString) {
     
     return `${year}年${month}月${day}日 ${hours}:${minutes}`;
 }
+
+// === 新增界面优化功能 ===
+
+// 创建粒子效果
+function createParticleEffect(element) {
+    const rect = element.getBoundingClientRect();
+    const particles = 6;
+    
+    for (let i = 0; i < particles; i++) {
+        const particle = document.createElement('div');
+        particle.style.cssText = `
+            position: fixed;
+            width: 4px;
+            height: 4px;
+            background: radial-gradient(circle, #FFB6C1, #DDA0DD);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            left: ${rect.left + rect.width/2}px;
+            top: ${rect.top + rect.height/2}px;
+        `;
+        
+        document.body.appendChild(particle);
+        
+        // 随机方向和距离
+        const angle = (Math.PI * 2 * i) / particles;
+        const distance = 30 + Math.random() * 20;
+        const endX = rect.left + rect.width/2 + Math.cos(angle) * distance;
+        const endY = rect.top + rect.height/2 + Math.sin(angle) * distance;
+        
+        particle.animate([
+            { 
+                transform: 'scale(1) translate(0, 0)',
+                opacity: 1 
+            },
+            { 
+                transform: `scale(0) translate(${endX - rect.left - rect.width/2}px, ${endY - rect.top - rect.height/2}px)`,
+                opacity: 0 
+            }
+        ], {
+            duration: 800,
+            easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+        }).onfinish = () => particle.remove();
+    }
+}
+
+// 添加页面加载动画
+function addPageLoadAnimation() {
+    const searchBox = document.querySelector('.search-box');
+    if (searchBox) {
+        searchBox.style.transform = 'translateY(-50px)';
+        searchBox.style.opacity = '0';
+        
+        setTimeout(() => {
+            searchBox.style.transition = 'all 1s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            searchBox.style.transform = 'translateY(0)';
+            searchBox.style.opacity = '1';
+        }, 300);
+    }
+}
+
+// 添加瓶子出现动画
+function addBottleAppearAnimation() {
+    const bottles = document.querySelectorAll('.bottle-item');
+    bottles.forEach((bottle, index) => {
+        bottle.style.opacity = '0';
+        bottle.style.transform = 'scale(0.3) translateY(100px)';
+        
+        setTimeout(() => {
+            bottle.style.transition = 'all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            bottle.style.opacity = '1';
+            bottle.style.transform = 'scale(1) translateY(0)';
+        }, 100 * index);
+    });
+}
+
+// 优化搜索输入体验
+function enhanceSearchExperience() {
+    const searchInput = document.getElementById('mainSearchInput');
+    const searchContainer = document.querySelector('.search-input-container');
+    
+    if (searchInput && searchContainer) {
+        let searchTimeout;
+        
+        searchInput.addEventListener('input', function() {
+            // 添加输入时的微动画
+            searchContainer.style.transform = 'scale(1.02)';
+            
+            setTimeout(() => {
+                searchContainer.style.transform = 'scale(1)';
+            }, 150);
+            
+            // 防抖处理
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                performSearch();
+            }, 300);
+        });
+        
+        // 焦点效果
+        searchInput.addEventListener('focus', function() {
+            searchContainer.style.borderColor = 'rgba(255, 105, 180, 0.6)';
+            searchContainer.style.boxShadow = '0 0 0 3px rgba(255, 182, 193, 0.3)';
+        });
+        
+        searchInput.addEventListener('blur', function() {
+            searchContainer.style.borderColor = 'rgba(255, 182, 193, 0.4)';
+            searchContainer.style.boxShadow = 'inset 0 2px 8px rgba(255, 182, 193, 0.1)';
+        });
+    }
+}
+
+// 添加打字机效果到标题
+function addTypewriterEffect() {
+    const title = document.querySelector('.search-title');
+    if (title) {
+        const text = title.textContent;
+        title.textContent = '';
+        title.style.borderRight = '2px solid #8B4C93';
+        
+        let i = 0;
+        const typeInterval = setInterval(() => {
+            if (i < text.length) {
+                title.textContent += text.charAt(i);
+                i++;
+            } else {
+                clearInterval(typeInterval);
+                // 移除光标效果
+                setTimeout(() => {
+                    title.style.borderRight = 'none';
+                }, 1000);
+            }
+        }, 100);
+    }
+}
+
+// 初始化所有优化效果
+function initEnhancements() {
+    // 延迟执行，确保DOM完全加载
+    setTimeout(() => {
+        addPageLoadAnimation();
+        enhanceSearchExperience();
+        // addTypewriterEffect(); // 可选：打字机效果
+        
+        // 瓶子出现动画延迟执行
+        setTimeout(() => {
+            addBottleAppearAnimation();
+        }, 800);
+    }, 100);
+}
+
+// 在页面加载完成后初始化优化
+document.addEventListener('DOMContentLoaded', function() {
+    // 原有的初始化逻辑...
+    
+    // 新增的优化初始化
+    initEnhancements();
+});

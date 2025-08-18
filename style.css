@@ -100,10 +100,13 @@ body {
         0 8px 25px rgba(221, 160, 221, 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.7);
     border: 3px solid rgba(255, 255, 255, 0.6);
-    min-width: 550px;
+    width: 90%;
     max-width: 700px;
+    min-width: 320px;
     position: relative;
     overflow: hidden;
+    margin: 0 auto;
+    transition: all 0.3s ease;
 }
 
 .search-box::before {
@@ -949,3 +952,200 @@ body {
 .bottle-item:nth-child(5) { animation-delay: 1.2s, 0.7s, 1.5s; }
 .bottle-item:nth-child(6) { animation-delay: 2s, 1.5s, 0.2s; }
 .bottle-item:nth-child(7) { animation-delay: 0.6s, 2.2s, 2.8s; }
+
+/* === 新增界面优化样式 === */
+
+/* 1. 增强搜索框焦点效果 */
+.search-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 20px 60px rgba(255, 182, 193, 0.5),
+        0 12px 35px rgba(221, 160, 221, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+#mainSearchInput:focus + .btn-write-new,
+.search-input-container:focus-within {
+    border-color: rgba(255, 105, 180, 0.6);
+    box-shadow: 
+        inset 0 2px 8px rgba(255, 182, 193, 0.2),
+        0 0 0 3px rgba(255, 182, 193, 0.3);
+    background: rgba(255, 255, 255, 0.95);
+}
+
+/* 2. 按钮悬停增强效果 */
+.btn-write-new:hover {
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 
+        0 12px 30px rgba(255, 182, 193, 0.6),
+        0 0 20px rgba(255, 105, 180, 0.4);
+    background: linear-gradient(135deg, #FF9FAB, #E195D3, #9BDBF0);
+}
+
+.btn-write-new:active {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 6px 15px rgba(255, 182, 193, 0.5);
+}
+
+/* 3. 瓶子弹窗优化 */
+.bottle-modal.active .modal-content {
+    animation: kawaii-modalShow 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes kawaii-modalShow {
+    0% {
+        opacity: 0;
+        transform: scale(0.3) translateY(100px) rotate(-10deg);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.1) translateY(-10px) rotate(2deg);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0) rotate(0deg);
+    }
+}
+
+/* 4. 写消息面板优化 */
+.write-panel.active .write-content {
+    animation: kawaii-writeShow 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes kawaii-writeShow {
+    0% {
+        opacity: 0;
+        transform: scale(0.5) translateX(-100px);
+        filter: blur(10px);
+    }
+    60% {
+        opacity: 0.9;
+        transform: scale(1.05) translateX(10px);
+        filter: blur(2px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateX(0);
+        filter: blur(0px);
+    }
+}
+
+/* 5. 响应式设计增强 */
+@media (max-width: 768px) {
+    .search-box {
+        padding: 15px 20px;
+        border-radius: 25px;
+        width: 95%;
+        min-width: 280px;
+    }
+    
+    .search-title {
+        font-size: 1.1rem;
+        margin-bottom: 12px;
+    }
+    
+    .search-input-container {
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px;
+    }
+    
+    #mainSearchInput {
+        padding: 12px 15px;
+        font-size: 1rem;
+        text-align: center;
+    }
+    
+    .btn-write-new {
+        padding: 12px 24px;
+        font-size: 0.95rem;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .main-search-container {
+        top: 20px;
+        width: 100%;
+        padding: 0 10px;
+    }
+}
+
+/* 6. 加载动画优化 */
+.loading-bottles {
+    animation: kawaii-loading 2s ease-in-out infinite;
+}
+
+@keyframes kawaii-loading {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.8;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.1);
+        opacity: 1;
+    }
+}
+
+/* 7. 空状态优化 */
+.empty-bottles {
+    animation: kawaii-empty 3s ease-in-out infinite;
+}
+
+@keyframes kawaii-empty {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.6;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.05);
+        opacity: 0.8;
+    }
+}
+
+/* 8. 滚动条美化 */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 182, 193, 0.1);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #FFB6C1, #DDA0DD);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #FF9FAB, #E195D3);
+}
+
+/* 9. 性能优化 */
+.bottle-item,
+.search-box,
+.btn-write-new {
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+/* 10. 微交互增强 */
+.btn-write-new .btn-icon {
+    transition: transform 0.3s ease;
+}
+
+.btn-write-new:hover .btn-icon {
+    transform: scale(1.2) rotate(15deg);
+}
+
+.search-title {
+    transition: all 0.3s ease;
+}
+
+.search-box:hover .search-title {
+    transform: translateY(-2px);
+    text-shadow: 0 4px 12px rgba(139, 76, 147, 0.3);
+}
