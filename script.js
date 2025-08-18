@@ -12,7 +12,53 @@ const DEBUG_MODE = window.LifeStationConfig?.DEBUG_MODE ?? true;
 function debugLog(...args) {
     if (DEBUG_MODE) {
         console.log('🌊 Life Station:', ...args);
+        
+        // 在页面上也显示调试信息（手机端方便查看）
+        showDebugInfo(args.join(' '));
     }
+}
+
+// 显示调试信息
+function showDebugInfo(message) {
+    if (!DEBUG_MODE) return;
+    
+    let debugPanel = document.getElementById('debug-panel');
+    if (!debugPanel) {
+        debugPanel = document.createElement('div');
+        debugPanel.id = 'debug-panel';
+        debugPanel.style.cssText = `
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            max-height: 120px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            font-size: 11px;
+            padding: 8px;
+            border-radius: 4px;
+            z-index: 9999;
+            font-family: monospace;
+            line-height: 1.2;
+        `;
+        document.body.appendChild(debugPanel);
+    }
+    
+    const time = new Date().toLocaleTimeString();
+    const logEntry = document.createElement('div');
+    logEntry.textContent = `[${time}] ${message}`;
+    logEntry.style.marginBottom = '2px';
+    
+    debugPanel.appendChild(logEntry);
+    
+    // 保持最新的10条日志
+    while (debugPanel.children.length > 10) {
+        debugPanel.removeChild(debugPanel.firstChild);
+    }
+    
+    // 自动滚动到底部
+    debugPanel.scrollTop = debugPanel.scrollHeight;
 }
 
 // 爱情主题诗句库
@@ -63,11 +109,24 @@ if (!window.LifeStationConfig?.USE_LOCAL_STORAGE) {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', async function() {
+    // 显示配置信息
+    debugLog('🚀 初始化开始');
+    debugLog(`API地址: ${API_BASE_URL}`);
+    debugLog(`本地存储模式: ${USE_LOCAL_STORAGE}`);
+    debugLog(`调试模式: ${DEBUG_MODE}`);
+    debugLog(`网络状态: ${navigator.onLine ? '在线' : '离线'}`);
+    
     initOceanAnimation();
+    
+    // 显示加载状态
+    showLoadingBottles();
+    
     await loadBottles(); // 等待数据加载完成
     bindEvents();
     displayBottles();
     initNetworkMonitoring(); // 初始化网络监控
+    
+    debugLog('✅ 初始化完成');
 });
 
 // 网络状态监控
@@ -678,23 +737,87 @@ async function loadBottles() {
             // 本地存储模式
             const stored = localStorage.getItem('lifeStationBottles');
             bottles = stored ? JSON.parse(stored) : getSampleBottles();
+            debugLog(`📦 从本地存储加载了 ${bottles.length} 个漂流瓶`);
         } else {
-            // API 模式
-            const response = await fetch(`${API_BASE_URL}/bottles?limit=50`);
-            
-            if (response.ok) {
-                const data = await response.json();
-                bottles = data.bottles || [];
-                debugLog(`🌊 从海洋中捞起了 ${bottles.length} 个漂流瓶`);
-            } else {
-                console.warn('无法从API加载数据，使用示例数据');
-                bottles = getSampleBottles();
-            }
+            // API 模式 - 添加重试机制
+            debugLog('🌊 正在从海洋中寻找漂流瓶...');
+            bottles = await loadBottlesWithRetry();
+            debugLog(`🌊 从海洋中捞起了 ${bottles.length} 个漂流瓶`);
         }
     } catch (error) {
         console.error('加载数据失败:', error);
+        debugLog('⚠️ 数据加载失败，使用示例数据');
         bottles = getSampleBottles();
     }
+}
+
+// 带重试机制的瓶子加载函数
+async function loadBottlesWithRetry(maxRetries = 3, timeout = 20000) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            debugLog(`第 ${attempt} 次尝试加载数据...`);
+            
+            // 检查网络状态
+            if (!navigator.onLine) {
+                throw new Error('网络连接已断开');
+            }
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            
+            const response = await fetch(`${API_BASE_URL}/bottles?limit=50`, {
+                method: 'GET',
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+                const data = await response.json();
+                const loadedBottles = data.bottles || [];
+                
+                if (loadedBottles.length === 0) {
+                    debugLog('⚠️ API返回空数据，可能是服务器问题');
+                    if (attempt === maxRetries) {
+                        return getSampleBottles(); // 最后一次尝试失败时使用示例数据
+                    }
+                    throw new Error('API返回空数据');
+                }
+                
+                debugLog(`✅ 第 ${attempt} 次尝试成功，加载了 ${loadedBottles.length} 个漂流瓶`);
+                return loadedBottles;
+            } else {
+                if (response.status === 404) {
+                    debugLog('⚠️ API接口不存在，使用示例数据');
+                    return getSampleBottles();
+                } else if (response.status >= 500) {
+                    throw new Error(`服务器错误 (${response.status})`);
+                } else {
+                    throw new Error(`请求失败 (${response.status})`);
+                }
+            }
+            
+        } catch (error) {
+            debugLog(`❌ 第 ${attempt} 次加载尝试失败:`, error.message);
+            
+            if (error.name === 'AbortError') {
+                debugLog('⏰ 加载超时，可能是服务器冷启动');
+            }
+            
+            if (attempt === maxRetries) {
+                debugLog('⚠️ 所有加载尝试都失败了，使用示例数据');
+                return getSampleBottles();
+            }
+            
+            // 等待后重试（递增等待时间）
+            const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+            debugLog(`⏱️ 等待 ${waitTime/1000} 秒后重试加载...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+    }
+    
+    // 理论上不会到达这里，但为了安全起见
+    return getSampleBottles();
 }
 
 // 示例数据
@@ -746,12 +869,57 @@ function getSampleBottles() {
     ];
 }
 
+// 显示加载状态
+function showLoadingBottles() {
+    const container = bottlesContainer;
+    container.innerHTML = `
+        <div class="loading-bottles" style="
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
+            z-index: 10;
+        ">
+            <div style="margin-bottom: 10px; font-size: 2rem;">🌊</div>
+            <div>正在寻找漂流瓶...</div>
+            <div style="font-size: 12px; margin-top: 5px; opacity: 0.7;">
+                首次加载可能需要一些时间
+            </div>
+        </div>
+    `;
+}
+
 // 显示瓶子
 function displayBottles() {
     const container = bottlesContainer;
     container.innerHTML = '';
     
     const bottlesToShow = isSearchMode ? searchResults : bottles;
+    
+    if (bottlesToShow.length === 0) {
+        // 显示空状态
+        container.innerHTML = `
+            <div class="empty-bottles" style="
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                text-align: center;
+                color: rgba(255, 255, 255, 0.6);
+                font-size: 16px;
+            ">
+                <div style="margin-bottom: 10px; font-size: 2rem;">🌙</div>
+                <div>海面很平静，还没有漂流瓶</div>
+                <div style="font-size: 12px; margin-top: 5px;">
+                    写下第一个思念，让它漂向远方
+                </div>
+            </div>
+        `;
+        return;
+    }
     
     bottlesToShow.forEach((bottle, index) => {
         const bottleElement = createBottleElement(bottle, index);
