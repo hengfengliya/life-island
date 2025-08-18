@@ -56,9 +56,8 @@ async function runNetworkDiagnostics() {
         // 测试基础连通性
         try {
             const startTime = Date.now();
-            const response = await fetch(`${API_BASE_URL}/health`, {
-                method: 'GET',
-                signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined
+            const response = await mobileFetch(`${API_BASE_URL}/health`, {
+                method: 'GET'
             });
             const endTime = Date.now();
             
@@ -90,9 +89,8 @@ async function runNetworkDiagnostics() {
         try {
             debugLog('🧪 测试Bottles API...');
             const startTime = Date.now();
-            const response = await fetch(`${API_BASE_URL}/bottles?limit=1`, {
-                method: 'GET',
-                signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined
+            const response = await mobileFetch(`${API_BASE_URL}/bottles?limit=1`, {
+                method: 'GET'
             });
             const endTime = Date.now();
             
@@ -126,6 +124,99 @@ async function runNetworkDiagnostics() {
     
     debugLog('🎯 诊断完成，结果:', JSON.stringify(results, null, 2));
     return results;
+}
+
+// 检测设备类型和网络环境
+function detectEnvironment() {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    const isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+    const isInApp = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+    
+    return {
+        isMobile,
+        isIOS,
+        isAndroid,
+        isWeChat,
+        isInApp,
+        userAgent: navigator.userAgent
+    };
+}
+
+// 移动端优化的fetch函数
+async function mobileFetch(url, options = {}) {
+    const env = detectEnvironment();
+    debugLog('📱 设备环境:', JSON.stringify(env, null, 2));
+    
+    // 移动端专用选项
+    const mobileOptions = {
+        ...options,
+        // 添加移动端友好的headers
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            ...options.headers
+        },
+        // 移动端更宽松的设置
+        mode: 'cors',
+        credentials: 'omit', // 移动端避免凭据问题
+        redirect: 'follow'
+    };
+    
+    // iOS Safari特殊处理
+    if (env.isIOS) {
+        debugLog('🍎 检测到iOS设备，应用iOS特定优化');
+        // iOS Safari对fetch有特殊限制，使用更兼容的方式
+        mobileOptions.cache = 'no-store';
+    }
+    
+    // Android Chrome特殊处理
+    if (env.isAndroid) {
+        debugLog('🤖 检测到Android设备，应用Android特定优化');
+        // Android可能有更严格的CORS政策
+        mobileOptions.referrerPolicy = 'no-referrer';
+    }
+    
+    // 微信内置浏览器特殊处理
+    if (env.isWeChat) {
+        debugLog('💬 检测到微信浏览器，应用微信特定优化');
+        // 微信浏览器可能有特殊的网络限制
+        mobileOptions.headers['User-Agent'] = navigator.userAgent;
+    }
+    
+    debugLog('🌐 使用移动端优化请求:', url, JSON.stringify(mobileOptions, null, 2));
+    
+    try {
+        // 移动端使用更长的超时时间
+        const controller = new AbortController();
+        const timeout = env.isMobile ? 45000 : 30000; // 移动端45秒超时
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+        
+        mobileOptions.signal = controller.signal;
+        
+        const response = await fetch(url, mobileOptions);
+        clearTimeout(timeoutId);
+        
+        debugLog('✅ 移动端请求成功:', response.status, response.statusText);
+        return response;
+        
+    } catch (error) {
+        debugLog('❌ 移动端请求失败:', error.message, error.name);
+        
+        // 移动端特殊错误处理
+        if (error.name === 'AbortError') {
+            throw new Error('移动网络超时，请检查网络连接或稍后重试');
+        } else if (error.message.includes('CORS')) {
+            throw new Error('移动端跨域请求被阻止，可能是网络环境限制');
+        } else if (error.message.includes('network')) {
+            throw new Error('移动网络连接失败，请检查网络设置');
+        } else {
+            throw error;
+        }
+    }
 }
 
 // 调试日志函数
@@ -637,7 +728,7 @@ function updateSendButtonState(state) {
 }
 
 // 带重试机制的发送函数
-async function sendWithRetry(message, maxRetries = 3, timeout = 30000) { // 增加到30秒超时
+async function sendWithRetry(message, maxRetries = 3, timeout = 45000) { // 增加到45秒超时
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             debugLog(`第 ${attempt} 次尝试发送消息...`);
@@ -652,22 +743,13 @@ async function sendWithRetry(message, maxRetries = 3, timeout = 30000) { // 增�
                 updateSendButtonState('warming');
             }
             
-            // 创建带超时的fetch请求
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeout);
-            
-            const response = await fetch(`${API_BASE_URL}/bottles`, {
+            // 使用移动端优化的fetch
+            const response = await mobileFetch(`${API_BASE_URL}/bottles`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
                 body: JSON.stringify({
                     message: message
-                }),
-                signal: controller.signal
+                })
             });
-            
-            clearTimeout(timeoutId);
             
             if (!response.ok) {
                 if (response.status === 429) {
@@ -693,16 +775,6 @@ async function sendWithRetry(message, maxRetries = 3, timeout = 30000) { // 增�
         } catch (error) {
             debugLog(`❌ 第 ${attempt} 次尝试失败:`, error.message);
             
-            if (error.name === 'AbortError') {
-                if (attempt === 1) {
-                    // 第一次超时可能是冷启动，给出友好提示
-                    updateSendButtonState('coldstart');
-                    throw new Error('服务器启动中，请稍等几秒后重试');
-                } else {
-                    throw new Error('网络超时，请检查网络连接');
-                }
-            }
-            
             if (attempt === maxRetries) {
                 // 根据错误类型提供不同的建议
                 let suggestion = '';
@@ -718,7 +790,7 @@ async function sendWithRetry(message, maxRetries = 3, timeout = 30000) { // 增�
             }
             
             // 等待一段时间后重试（递增等待时间）
-            const waitTime = Math.min(2000 * Math.pow(2, attempt - 1), 10000); // 增加等待时间
+            const waitTime = Math.min(3000 * Math.pow(2, attempt - 1), 12000); // 增加等待时间
             debugLog(`⏱️ 等待 ${waitTime/1000} 秒后重试...`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
         }
@@ -885,7 +957,7 @@ async function loadBottles() {
 }
 
 // 带重试机制的瓶子加载函数
-async function loadBottlesWithRetry(maxRetries = 3, timeout = 20000) {
+async function loadBottlesWithRetry(maxRetries = 3, timeout = 45000) { // 增加超时到45秒
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             debugLog(`第 ${attempt} 次尝试加载数据...`);
@@ -895,15 +967,10 @@ async function loadBottlesWithRetry(maxRetries = 3, timeout = 20000) {
                 throw new Error('网络连接已断开');
             }
             
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeout);
-            
-            const response = await fetch(`${API_BASE_URL}/bottles?limit=50`, {
-                method: 'GET',
-                signal: controller.signal
+            // 使用移动端优化的fetch
+            const response = await mobileFetch(`${API_BASE_URL}/bottles?limit=50`, {
+                method: 'GET'
             });
-            
-            clearTimeout(timeoutId);
             
             if (response.ok) {
                 const data = await response.json();
@@ -933,17 +1000,13 @@ async function loadBottlesWithRetry(maxRetries = 3, timeout = 20000) {
         } catch (error) {
             debugLog(`❌ 第 ${attempt} 次加载尝试失败:`, error.message);
             
-            if (error.name === 'AbortError') {
-                debugLog('⏰ 加载超时，可能是服务器冷启动');
-            }
-            
             if (attempt === maxRetries) {
                 debugLog('⚠️ 所有加载尝试都失败了，使用示例数据');
                 return getSampleBottles();
             }
             
             // 等待后重试（递增等待时间）
-            const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+            const waitTime = Math.min(2000 * Math.pow(2, attempt - 1), 8000); // 增加等待时间
             debugLog(`⏱️ 等待 ${waitTime/1000} 秒后重试加载...`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
         }
