@@ -56,8 +56,12 @@ async function runNetworkDiagnostics() {
         // 测试基础连通性
         try {
             const startTime = Date.now();
-            const response = await mobileFetch(`${API_BASE_URL}/health`, {
-                method: 'GET'
+            const response = await fetch(`${API_BASE_URL}/health`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined
             });
             const endTime = Date.now();
             
@@ -89,8 +93,12 @@ async function runNetworkDiagnostics() {
         try {
             debugLog('🧪 测试Bottles API...');
             const startTime = Date.now();
-            const response = await mobileFetch(`${API_BASE_URL}/bottles?limit=1`, {
-                method: 'GET'
+            const response = await fetch(`${API_BASE_URL}/bottles?limit=1`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined
             });
             const endTime = Date.now();
             
@@ -326,6 +334,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     debugLog(`本地存储模式: ${USE_LOCAL_STORAGE}`);
     debugLog(`调试模式: ${DEBUG_MODE}`);
     debugLog(`网络状态: ${navigator.onLine ? '在线' : '离线'}`);
+    debugLog(`用户代理: ${navigator.userAgent}`);
     
     // 在调试模式下显示调试按钮
     if (DEBUG_MODE) {
@@ -728,7 +737,7 @@ function updateSendButtonState(state) {
 }
 
 // 带重试机制的发送函数
-async function sendWithRetry(message, maxRetries = 3, timeout = 45000) { // 增加到45秒超时
+async function sendWithRetry(message, maxRetries = 3, timeout = 30000) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             debugLog(`第 ${attempt} 次尝试发送消息...`);
@@ -743,13 +752,22 @@ async function sendWithRetry(message, maxRetries = 3, timeout = 45000) { // 增�
                 updateSendButtonState('warming');
             }
             
-            // 使用移动端优化的fetch
-            const response = await mobileFetch(`${API_BASE_URL}/bottles`, {
+            // 使用标准fetch，与web端保持一致
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            
+            const response = await fetch(`${API_BASE_URL}/bottles`, {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify({
                     message: message
-                })
+                }),
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (!response.ok) {
                 if (response.status === 429) {
@@ -775,6 +793,16 @@ async function sendWithRetry(message, maxRetries = 3, timeout = 45000) { // 增�
         } catch (error) {
             debugLog(`❌ 第 ${attempt} 次尝试失败:`, error.message);
             
+            if (error.name === 'AbortError') {
+                if (attempt === 1) {
+                    // 第一次超时可能是冷启动，给出友好提示
+                    updateSendButtonState('coldstart');
+                    throw new Error('服务器启动中，请稍等几秒后重试');
+                } else {
+                    throw new Error('网络超时，请检查网络连接');
+                }
+            }
+            
             if (attempt === maxRetries) {
                 // 根据错误类型提供不同的建议
                 let suggestion = '';
@@ -790,7 +818,7 @@ async function sendWithRetry(message, maxRetries = 3, timeout = 45000) { // 增�
             }
             
             // 等待一段时间后重试（递增等待时间）
-            const waitTime = Math.min(3000 * Math.pow(2, attempt - 1), 12000); // 增加等待时间
+            const waitTime = Math.min(2000 * Math.pow(2, attempt - 1), 10000);
             debugLog(`⏱️ 等待 ${waitTime/1000} 秒后重试...`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
         }
@@ -957,7 +985,7 @@ async function loadBottles() {
 }
 
 // 带重试机制的瓶子加载函数
-async function loadBottlesWithRetry(maxRetries = 3, timeout = 45000) { // 增加超时到45秒
+async function loadBottlesWithRetry(maxRetries = 3, timeout = 30000) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             debugLog(`第 ${attempt} 次尝试加载数据...`);
@@ -967,10 +995,19 @@ async function loadBottlesWithRetry(maxRetries = 3, timeout = 45000) { // 增加
                 throw new Error('网络连接已断开');
             }
             
-            // 使用移动端优化的fetch
-            const response = await mobileFetch(`${API_BASE_URL}/bottles?limit=50`, {
-                method: 'GET'
+            // 使用标准fetch，与web端保持一致
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            
+            const response = await fetch(`${API_BASE_URL}/bottles?limit=50`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (response.ok) {
                 const data = await response.json();
@@ -1000,13 +1037,17 @@ async function loadBottlesWithRetry(maxRetries = 3, timeout = 45000) { // 增加
         } catch (error) {
             debugLog(`❌ 第 ${attempt} 次加载尝试失败:`, error.message);
             
+            if (error.name === 'AbortError') {
+                debugLog('⏰ 加载超时，可能是服务器冷启动');
+            }
+            
             if (attempt === maxRetries) {
                 debugLog('⚠️ 所有加载尝试都失败了，使用示例数据');
                 return getSampleBottles();
             }
             
             // 等待后重试（递增等待时间）
-            const waitTime = Math.min(2000 * Math.pow(2, attempt - 1), 8000); // 增加等待时间
+            const waitTime = Math.min(2000 * Math.pow(2, attempt - 1), 8000);
             debugLog(`⏱️ 等待 ${waitTime/1000} 秒后重试加载...`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
         }
