@@ -55,6 +55,12 @@ const closeModal = document.getElementById('closeModal');
 const messageInput = document.getElementById('messageInput');
 const mainSearchInput = document.getElementById('mainSearchInput');
 
+// 立即预热API（在页面加载的同时进行，不等待DOM）
+if (!window.LifeStationConfig?.USE_LOCAL_STORAGE) {
+    // 尽早开始预热，与页面加载并行进行
+    warmupAPI();
+}
+
 // 初始化
 document.addEventListener('DOMContentLoaded', async function() {
     initOceanAnimation();
@@ -62,11 +68,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     bindEvents();
     displayBottles();
     initNetworkMonitoring(); // 初始化网络监控
-    
-    // 预热API（防止冷启动）
-    if (!USE_LOCAL_STORAGE) {
-        warmupAPI();
-    }
 });
 
 // 网络状态监控
@@ -103,7 +104,7 @@ async function warmupAPI() {
         
         // 发送健康检查请求来预热服务器
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5秒超时
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 增加到8秒超时
         
         const response = await fetch(`${API_BASE_URL}/health`, {
             method: 'GET',
@@ -115,11 +116,39 @@ async function warmupAPI() {
         if (response.ok) {
             const data = await response.json();
             debugLog('✅ API服务器预热成功:', data);
+            
+            // 预热成功后，再预热一次bottles接口（更关键的接口）
+            setTimeout(() => {
+                preloadBottlesAPI();
+            }, 1000);
         } else {
             debugLog('⚠️ API服务器预热响应异常:', response.status);
         }
     } catch (error) {
         debugLog('⚠️ API服务器预热失败（这是正常的）:', error.message);
+    }
+}
+
+// 预加载bottles接口（让Workers完全预热）
+async function preloadBottlesAPI() {
+    try {
+        debugLog('🔥 预热bottles接口...');
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(`${API_BASE_URL}/bottles?limit=1`, {
+            method: 'GET',
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+            debugLog('✅ bottles接口预热成功');
+        }
+    } catch (error) {
+        debugLog('⚠️ bottles接口预热失败（这是正常的）:', error.message);
     }
 }
 

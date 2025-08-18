@@ -5,6 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>把思念交给海，把故事交给风</title>
     <link rel="stylesheet" href="style.css">
+    
+    <!-- 立即开始API预热 - 在所有其他资源加载之前 -->
+    <script>
+        // 尽早预热API，减少冷启动时间
+        (function() {
+            // 简单的预热请求，不依赖任何外部库
+            const preHeat = () => {
+                try {
+                    const apiUrl = 'https://life-station-api.life-island.workers.dev/api/health';
+                    
+                    fetch(apiUrl, { 
+                        method: 'GET',
+                        signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined
+                    }).then(response => {
+                        if (response.ok) {
+                            console.log('🔥 API预热请求已发送');
+                        }
+                    }).catch(() => {
+                        // 静默处理错误，不影响页面加载
+                    });
+                } catch (e) {
+                    // 静默处理错误
+                }
+            };
+            
+            // 立即执行预热
+            preHeat();
+        })();
+    </script>
 </head>
 <body>
     <div class="ocean-container">
