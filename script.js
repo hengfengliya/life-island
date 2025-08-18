@@ -91,14 +91,15 @@ function showNetworkEnvironmentTips() {
     const env = detectNetworkEnvironment();
     debugLog('🌍 网络环境检测:', JSON.stringify(env, null, 2));
     
-    if (env.isChina) {
-        debugLog('🇨🇳 检测到中国大陆网络环境');
-        debugLog('💡 提示: Cloudflare Workers在中国大陆可能需要科学上网工具');
-        debugLog('📱 如果手机端无法加载数据，请确保开启VPN或代理');
-        
-        // 显示用户友好的提示
-        showMobileAlert('检测到中国大陆网络环境\n如数据加载失败，请尝试开启VPN或代理工具');
-    }
+    // 移除用户提示，静默运行
+    // if (env.isChina) {
+    //     debugLog('🇨🇳 检测到中国大陆网络环境');
+    //     debugLog('💡 提示: Cloudflare Workers在中国大陆可能需要科学上网工具');
+    //     debugLog('📱 如果手机端无法加载数据，请确保开启VPN或代理');
+    //     
+    //     // 显示用户友好的提示
+    //     showMobileAlert('检测到中国大陆网络环境\n如数据加载失败，请尝试开启VPN或代理工具');
+    // }
 }
 
 // 网络连通性测试
@@ -404,45 +405,8 @@ function debugLog(...args) {
 
 // 显示调试信息
 function showDebugInfo(message) {
-    if (!DEBUG_MODE) return;
-    
-    let debugPanel = document.getElementById('debug-panel');
-    if (!debugPanel) {
-        debugPanel = document.createElement('div');
-        debugPanel.id = 'debug-panel';
-        debugPanel.style.cssText = `
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            right: 10px;
-            max-height: 120px;
-            overflow-y: auto;
-            background: rgba(0, 0, 0, 0.8);
-            color: #fff;
-            font-size: 11px;
-            padding: 8px;
-            border-radius: 4px;
-            z-index: 9999;
-            font-family: monospace;
-            line-height: 1.2;
-        `;
-        document.body.appendChild(debugPanel);
-    }
-    
-    const time = new Date().toLocaleTimeString();
-    const logEntry = document.createElement('div');
-    logEntry.textContent = `[${time}] ${message}`;
-    logEntry.style.marginBottom = '2px';
-    
-    debugPanel.appendChild(logEntry);
-    
-    // 保持最新的10条日志
-    while (debugPanel.children.length > 10) {
-        debugPanel.removeChild(debugPanel.firstChild);
-    }
-    
-    // 自动滚动到底部
-    debugPanel.scrollTop = debugPanel.scrollHeight;
+    // 调试信息已禁用，不显示任何内容
+    return;
 }
 
 // 爱情主题诗句库
@@ -508,18 +472,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     // 检测网络环境
     showNetworkEnvironmentTips();
     
-    // 在调试模式下显示调试按钮
-    if (DEBUG_MODE) {
-        const debugButtons = document.getElementById('debugButtons');
-        if (debugButtons) {
-            debugButtons.style.display = 'block';
-        }
-    }
+    // 在调试模式下显示调试按钮（已禁用）
+    // if (DEBUG_MODE) {
+    //     const debugButtons = document.getElementById('debugButtons');
+    //     if (debugButtons) {
+    //         debugButtons.style.display = 'block';
+    //     }
+    // }
     
-    // 运行网络诊断
-    setTimeout(() => {
-        runNetworkDiagnostics();
-    }, 1000);
+    // 运行网络诊断（已禁用）
+    // setTimeout(() => {
+    //     runNetworkDiagnostics();
+    // }, 1000);
     
     initOceanAnimation();
     

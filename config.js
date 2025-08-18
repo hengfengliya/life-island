@@ -129,8 +129,8 @@ window.LifeStationConfig = {
     // 启用云端存储
     USE_LOCAL_STORAGE: false,
     
-    // 调试模式（可以看到连接状态）
-    DEBUG_MODE: true,
+    // 调试模式（关闭以隐藏调试信息）
+    DEBUG_MODE: false,
     
     // 功能开关
     FEATURES: {
