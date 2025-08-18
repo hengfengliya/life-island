@@ -5,16 +5,52 @@ window.LifeStationConfig = {
     // API地址列表（按优先级排序）
     API_ENDPOINTS: [
         {
-            name: '本地代理服务器（推荐）',
+            name: '免费代理1（AllOrigins）',
+            url: 'https://api.allorigins.win/raw?url=https%3A//life-station-api.life-island.workers.dev/api',
+            region: 'free-proxy',
+            priority: 1
+        },
+        {
+            name: '免费代理2（CORS Anywhere）',
+            url: 'https://cors-anywhere.herokuapp.com/https://life-station-api.life-island.workers.dev/api',
+            region: 'free-proxy',
+            priority: 2
+        },
+        {
+            name: '免费代理3（ThingProxy）',
+            url: 'https://thingproxy.freeboard.io/fetch/https://life-station-api.life-island.workers.dev/api',
+            region: 'free-proxy',
+            priority: 3
+        },
+        {
+            name: '免费代理4（Proxy6）',
+            url: 'https://proxy6.workers.dev/?url=https://life-station-api.life-island.workers.dev/api',
+            region: 'free-proxy',
+            priority: 4
+        },
+        {
+            name: '免费代理5（Workers Proxy）',
+            url: 'https://workers-proxy.chunfeng0906.workers.dev/https://life-station-api.life-island.workers.dev/api',
+            region: 'free-proxy',
+            priority: 5
+        },
+        {
+            name: '国内CDN1（jsDelivr CN）',
+            url: 'https://cdn.jsdelivr.net/gh/chunfeng0906/cors-proxy@main/proxy.js?url=https://life-station-api.life-island.workers.dev/api',
+            region: 'china-cdn',
+            priority: 6
+        },
+        {
+            name: '本地代理服务器',
             url: 'http://localhost:3000',
             region: 'local-proxy',
-            priority: 1
+            priority: 7
         },
         {
             name: 'Cloudflare Workers（主节点）',
             url: 'https://life-station-api.life-island.workers.dev/api',
             region: 'primary',
-            priority: 2
+            priority: 8
         },
         {
             name: 'CORS代理1（国内可用）',
