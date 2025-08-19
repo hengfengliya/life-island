@@ -893,6 +893,32 @@ function updateSendButtonState(state) {
 
 // 带重试机制的发送函数
 async function sendWithRetry(message, maxRetries = 3, timeout = 30000) {
+    // 在开始发送前，先验证当前API是否可用
+    debugLog('🔍 验证当前API可用性...');
+    const currentApiUrl = getCurrentApiUrl();
+    const currentApiHeaders = getCurrentApiHeaders();
+    
+    try {
+        const healthResponse = await fetch(`${currentApiUrl}/health`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                ...currentApiHeaders
+            },
+            signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
+        });
+        
+        if (!healthResponse.ok) {
+            debugLog('❌ 当前API不可用，尝试重新选择...');
+            await selectBestAPI();
+        } else {
+            debugLog('✅ 当前API可用');
+        }
+    } catch (error) {
+        debugLog('❌ API健康检查失败，尝试重新选择:', error.message);
+        await selectBestAPI();
+    }
+    
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             debugLog(`第 ${attempt} 次尝试发送消息...`);
@@ -913,6 +939,9 @@ async function sendWithRetry(message, maxRetries = 3, timeout = 30000) {
             
             const apiUrl = getCurrentApiUrl();
             const apiHeaders = getCurrentApiHeaders();
+            debugLog(`🌐 使用API地址: ${apiUrl}`);
+            debugLog(`📋 API Headers:`, apiHeaders);
+            
             const response = await fetch(`${apiUrl}/bottles`, {
                 method: 'POST',
                 headers: {
@@ -973,6 +1002,17 @@ async function sendWithRetry(message, maxRetries = 3, timeout = 30000) {
                 }
                 
                 throw new Error(`发送失败: ${error.message}，${suggestion}`);
+            }
+            
+            // 如果是网络错误或服务器错误，尝试切换API
+            if (attempt < maxRetries && (
+                error.message.includes('网络') || 
+                error.message.includes('超时') || 
+                error.name === 'AbortError' ||
+                error.message.includes('Failed to fetch')
+            )) {
+                debugLog('🔄 尝试切换到下一个可用的API...');
+                await selectBestAPI();
             }
             
             // 等待一段时间后重试（递增等待时间）

@@ -8,49 +8,57 @@ window.LifeStationConfig = {
             name: '免费代理1（AllOrigins）',
             url: 'https://api.allorigins.win/raw?url=https%3A//life-station-api.life-island.workers.dev/api',
             region: 'free-proxy',
-            priority: 1
+            priority: 1,
+            headers: {}
         },
         {
             name: '免费代理2（CORS Anywhere）',
             url: 'https://cors-anywhere.herokuapp.com/https://life-station-api.life-island.workers.dev/api',
             region: 'free-proxy',
-            priority: 2
+            priority: 2,
+            headers: {}
         },
         {
             name: '免费代理3（ThingProxy）',
             url: 'https://thingproxy.freeboard.io/fetch/https://life-station-api.life-island.workers.dev/api',
             region: 'free-proxy',
-            priority: 3
+            priority: 3,
+            headers: {}
         },
         {
             name: '免费代理4（Proxy6）',
             url: 'https://proxy6.workers.dev/?url=https://life-station-api.life-island.workers.dev/api',
             region: 'free-proxy',
-            priority: 4
+            priority: 4,
+            headers: {}
         },
         {
             name: '免费代理5（Workers Proxy）',
             url: 'https://workers-proxy.chunfeng0906.workers.dev/https://life-station-api.life-island.workers.dev/api',
             region: 'free-proxy',
-            priority: 5
+            priority: 5,
+            headers: {}
         },
         {
             name: '国内CDN1（jsDelivr CN）',
             url: 'https://cdn.jsdelivr.net/gh/chunfeng0906/cors-proxy@main/proxy.js?url=https://life-station-api.life-island.workers.dev/api',
             region: 'china-cdn',
-            priority: 6
+            priority: 6,
+            headers: {}
         },
         {
             name: '本地代理服务器',
             url: 'http://localhost:3000',
             region: 'local-proxy',
-            priority: 7
+            priority: 7,
+            headers: {}
         },
         {
             name: 'Cloudflare Workers（主节点）',
             url: 'https://life-station-api.life-island.workers.dev/api',
             region: 'primary',
-            priority: 8
+            priority: 8,
+            headers: {}
         },
         {
             name: 'CORS代理1（国内可用）',
