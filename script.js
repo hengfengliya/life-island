@@ -124,7 +124,7 @@ async function testNetworkConnectivity() {
         },
         {
             name: 'API健康检查',
-            url: `${API_BASE_URL}/health`,
+            url: `${getCurrentApiUrl()}/health`,
             timeout: 15000
         }
     ];
@@ -187,7 +187,7 @@ async function runNetworkDiagnostics() {
     
     // 1. 配置信息
     results.config = {
-        API_BASE_URL,
+        API_BASE_URL: getCurrentApiUrl(),
         USE_LOCAL_STORAGE,
         DEBUG_MODE,
         userAgent: navigator.userAgent
@@ -222,10 +222,13 @@ async function runNetworkDiagnostics() {
         // 测试基础连通性
         try {
             const startTime = Date.now();
-            const response = await fetch(`${API_BASE_URL}/health`, {
+            const apiUrl = getCurrentApiUrl();
+            const apiHeaders = getCurrentApiHeaders();
+            const response = await fetch(`${apiUrl}/health`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...apiHeaders
                 },
                 signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined
             });
@@ -259,10 +262,13 @@ async function runNetworkDiagnostics() {
         try {
             debugLog('🧪 测试Bottles API...');
             const startTime = Date.now();
-            const response = await fetch(`${API_BASE_URL}/bottles?limit=1`, {
+            const apiUrl = getCurrentApiUrl();
+            const apiHeaders = getCurrentApiHeaders();
+            const response = await fetch(`${apiUrl}/bottles?limit=1`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...apiHeaders
                 },
                 signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined
             });
@@ -535,8 +541,14 @@ async function warmupAPI() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000); // 增加到8秒超时
         
-        const response = await fetch(`${API_BASE_URL}/health`, {
+        const apiUrl = getCurrentApiUrl();
+        const apiHeaders = getCurrentApiHeaders();
+        const response = await fetch(`${apiUrl}/health`, {
             method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                ...apiHeaders
+            },
             signal: controller.signal
         });
         
@@ -566,8 +578,14 @@ async function preloadBottlesAPI() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        const response = await fetch(`${API_BASE_URL}/bottles?limit=1`, {
+        const apiUrl = getCurrentApiUrl();
+        const apiHeaders = getCurrentApiHeaders();
+        const response = await fetch(`${apiUrl}/bottles?limit=1`, {
             method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                ...apiHeaders
+            },
             signal: controller.signal
         });
         
@@ -1575,7 +1593,14 @@ async function performSearch() {
             );
         } else {
             // API 搜索
-            const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}&limit=30`);
+            const apiUrl = getCurrentApiUrl();
+            const apiHeaders = getCurrentApiHeaders();
+            const response = await fetch(`${apiUrl}/search?q=${encodeURIComponent(query)}&limit=30`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...apiHeaders
+                }
+            });
             
             if (response.ok) {
                 const data = await response.json();
